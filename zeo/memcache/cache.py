@@ -6,6 +6,11 @@ import threading
 import time
 from ZODB.utils import u64, z64
 import memcache
+import zope.interface
+from zope.interface import implements
+from zeo.cache.interfaces import IClientCache, IClientStorage
+from zeo.cache.registry import cacheRegistry
+
 
 logger = logging.getLogger("ZEO.memcache")
 
@@ -45,12 +50,13 @@ class locked(object):
 
 class ZeoClientMemcache(object):
     """A memcached based zodb cache."""
+    zope.interface.implements(IClientCache)
     
     def __nonzero__(self):
         return True
     
     # XXX: cache path will be url to memcache?
-    def __init__(self, cache_path, **kwargs):
+    def __init__(self, cache_path, size=None):
         # The number of records in the cache.
         self._n_items = 0
 
@@ -263,3 +269,6 @@ class ZeoClientMemcache(object):
     def sync():
         # nothing to do here on fs
         pass
+
+
+cacheRegistry.register([IClientStorage], IClientCache, '', ZeoClientMemcache)

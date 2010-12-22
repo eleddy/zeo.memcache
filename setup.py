@@ -17,13 +17,17 @@ setup(name='zeo.memcache',
       author_email='elizabeth.leddy@gmail.com',
       url='',
       license='GPL',
-      packages=find_packages(exclude=['ez_setup']),
-      namespace_packages=['zeo'],
+      packages=[
+        'zeo',
+        'zeo.cache',
+        'zeo.memcache',
+      ],
       include_package_data=True,
       zip_safe=False,
       install_requires=[
           'setuptools',
-          'ZODB3',
+          'ZODB3>=3.9.5',
+          'zope.interface',
           
           # -*- Extra requirements: -*-
       ],
