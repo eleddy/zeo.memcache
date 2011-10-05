@@ -1,18 +1,13 @@
 import xdrlib
 import BTrees.LOBTree
 import logging
-import os
 import threading
-import time
 from ZODB.utils import u64, z64
 import memcache
-import zope.interface
-from zope.interface import implements
-from zeo.cache.interfaces import IClientCache, IClientStorage
-from zeo.cache.registry import cacheRegistry
 
 
 logger = logging.getLogger("ZEO.memcache")
+
 
 def bpack(saved_oid, tid, end_tid, data):
     """
@@ -21,16 +16,19 @@ def bpack(saved_oid, tid, end_tid, data):
     p = xdrlib.Packer()
     p.pack_list([saved_oid, tid, end_tid, data], p.pack_string)
     return p.get_buffer()
-    
+
+
 def bunpack(packedData):
-    u = xdrlib.Unpacker(packedData)     
+    u = xdrlib.Unpacker(packedData)
     items = u.unpack_list(u.unpack_string)
     u.done()
     return items
-    
+
+
 def keyify(oid):
     """OIDs aren't good memcache keys. Remove all control characters"""
     return repr(oid).replace(" ", "")
+
 
 class locked(object):
     def __init__(self, func):
@@ -50,11 +48,10 @@ class locked(object):
 
 class ZeoClientMemcache(object):
     """A memcached based zodb cache."""
-    zope.interface.implements(IClientCache)
-    
+
     def __nonzero__(self):
         return True
-    
+
     # XXX: cache path will be url to memcache?
     def __init__(self, cache_path, size=None):
         # The number of records in the cache.
@@ -75,7 +72,7 @@ class ZeoClientMemcache(object):
         self.cache = memcache.Client(['127.0.0.1:11211'], debug=0)
 
         self._lock = threading.RLock()
-        
+
 
     def clear(self):
         self.cache.flush_all()
@@ -89,7 +86,7 @@ class ZeoClientMemcache(object):
                 0, 0,
                 self._n_accesses,
                )
-               
+
     def logStats(self):
         logging.info("Thread: %s --- Adds: %s      Accesses: %s"%(threading.current_thread(),self._n_adds, self._n_accesses))
         logging.info(self.cache.get_stats())
@@ -117,7 +114,7 @@ class ZeoClientMemcache(object):
         assert isinstance(tid, str) and len(tid) == 8, tid
         self.tid = tid
         self.cache.set('LAST_TID',tid)
-        
+
     ##
     # Return the last transaction seen by the cache.
     # @return a transaction id
@@ -126,7 +123,7 @@ class ZeoClientMemcache(object):
         tid = self.tid
         if not tid:
             tid = self.cache.get('LAST_TID')
-        return tid
+        return tid or z64
 
     ##
     # Return the current data record for oid.
@@ -139,12 +136,11 @@ class ZeoClientMemcache(object):
     def load(self, oid):
         obj = self.cache.get(keyify(oid))
         if not obj:
-            return None            
-        
+            return None
+
         saved_oid, tid, end_tid, data = bunpack(obj)
-            
+
         self._n_accesses += 1
-        
         return data, tid
 
     ##
@@ -202,7 +198,7 @@ class ZeoClientMemcache(object):
 
         if end_tid:
             self._set_noncurrent(oid, start_tid, ofs)
-            
+
 
     ##
     # If `tid` is None,
@@ -265,10 +261,7 @@ class ZeoClientMemcache(object):
             end_tid = x.end_tid or z64
             print oid_repr(x.key[0]), oid_repr(x.key[1]), oid_repr(end_tid)
         print
-        
+
     def sync():
         # nothing to do here on fs
         pass
-
-
-cacheRegistry.register([IClientStorage], IClientCache, '', ZeoClientMemcache)

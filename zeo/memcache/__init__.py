@@ -1,5 +1,6 @@
-# patch the zodb on start up
+from cache import ZeoClientMemcache
+from ZEO.ClientStorage import ClientStorage
 
-from patch import shakeItLikeAPolaroidPicture
+class MemcachedClientStorage(ClientStorage):
+    ClientCacheClass = ZeoClientMemcache
 
-shakeItLikeAPolaroidPicture()
